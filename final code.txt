@@ -1,0 +1,962 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+// Constants
+#define MAX_NAME_LENGTH 50
+#define MAX_PASSWORD_LENGTH 20
+#define MAX_ADDRESS_LENGTH 100
+#define MAX_PHONE_LENGTH 15
+#define MAX_EMAIL_LENGTH 50
+#define MAX_REASON_LENGTH 200
+#define MAX_DONATIONS 100
+#define MAX_USERS 50
+
+// Enums
+typedef enum {
+    CLOTHES,
+    FOOD,
+    MONEY,
+    MEDICINE
+} DonationType;
+
+typedef enum {
+    ADMIN,
+    DONOR,
+    VOLUNTEER
+} UserType;
+
+typedef enum {
+    PENDING,
+    APPROVED,
+    REJECTED
+} RequestStatus;
+
+// Structures
+typedef struct {
+    int id;
+    char name[MAX_NAME_LENGTH];
+    char password[MAX_PASSWORD_LENGTH];
+    char address[MAX_ADDRESS_LENGTH];
+    char phone[MAX_PHONE_LENGTH];
+    char email[MAX_EMAIL_LENGTH];
+    UserType type;
+} User;
+
+typedef struct {
+    int id;
+    int donorId;
+    DonationType type;
+    char description[MAX_NAME_LENGTH];
+    float quantity;
+    float amount; // For money donations
+    time_t date;
+    int isAvailable; // 1 for available, 0 for allocated
+} Donation;
+
+typedef struct {
+    int id;
+    int volunteerId;
+    int donationId;
+    char reason[MAX_REASON_LENGTH];
+    RequestStatus status;
+    time_t requestDate;
+} Request;
+
+// Global variables
+User users[MAX_USERS];
+int userCount = 0;
+Donation donations[MAX_DONATIONS];
+int donationCount = 0;
+Request requests[MAX_DONATIONS];
+int requestCount = 0;
+User currentUser;
+
+// Function declarations
+void initializeSystem();
+void saveData();
+void loadData();
+int loginUser(char *username, char *password);
+void registerUser(UserType type);
+void showMainMenu();
+void showAdminMenu();
+void showDonorMenu();
+void showVolunteerMenu();
+void addDonation();
+void viewAvailableDonations();
+void requestDonation(int donationId);
+void manageRequests();
+void approveRequest(int requestId);
+void rejectRequest(int requestId);
+void viewDonations();
+void viewDonationHistory();
+void viewApprovedRequests();
+void addSampleData();
+
+// Function to initialize the system
+void initializeSystem() {
+    // Load data from files
+    loadData();
+    
+    // Check if any users exist, if not create sample data
+    if (userCount == 0) {
+        addSampleData();
+      
+    }
+}
+
+// Function to add sample data
+void addSampleData() {
+    // Create admin user
+    User admin;
+    admin.id = 1;
+    strcpy(admin.name, "admin");
+    strcpy(admin.password, "0307");
+    strcpy(admin.address, "Charity HQ, 123 Main St");
+    strcpy(admin.phone, "5551234567");
+    strcpy(admin.email, "admin@charity.org");
+    admin.type = ADMIN;
+    users[userCount++] = admin;
+    
+    // Create donor users
+    User donor1;
+    donor1.id = 2;
+    strcpy(donor1.name, "sayed");
+    strcpy(donor1.password, "1234");
+    strcpy(donor1.address, "tirupathi");
+    strcpy(donor1.phone, "5552345678");
+    strcpy(donor1.email, "sayed@gmail.com");
+    donor1.type = DONOR;
+    users[userCount++] = donor1;
+    
+    User donor2;
+    donor2.id = 3;
+    strcpy(donor2.name, "shaik");
+    strcpy(donor2.password, "4321");
+    strcpy(donor2.address, "nellore");
+    strcpy(donor2.phone, "5553456789");
+    strcpy(donor2.email, "shaik@gmail.com");
+    donor2.type = DONOR;
+    users[userCount++] = donor2;
+    
+    // Create volunteer users
+    User volunteer1;
+    volunteer1.id = 4;
+    strcpy(volunteer1.name, "kunchala");
+    strcpy(volunteer1.password, "9876");
+    strcpy(volunteer1.address, "vdp");
+    strcpy(volunteer1.phone, "5554567890");
+    strcpy(volunteer1.email, "kunchala@gmail.com");
+    volunteer1.type = VOLUNTEER;
+    users[userCount++] = volunteer1;
+    
+    User volunteer2;
+    volunteer2.id = 5;
+    strcpy(volunteer2.name, "ain");
+    strcpy(volunteer2.password, "6789");
+    strcpy(volunteer2.address, "gandhi");
+    strcpy(volunteer2.phone, "5555678901");
+    strcpy(volunteer2.email, "shaikain@gmail.com");
+    volunteer2.type = VOLUNTEER;
+    users[userCount++] = volunteer2;
+    
+    // Add sample donations
+    time_t current_time = time(NULL);
+    
+    Donation donation1;
+    donation1.id = 1;
+    donation1.donorId = 2; // John
+    donation1.type = CLOTHES;
+    strcpy(donation1.description, "Winter clothes");
+    donation1.quantity = 10;
+    donation1.amount = 0;
+    donation1.date = current_time - 86400; // 1 day ago
+    donation1.isAvailable = 1;
+    donations[donationCount++] = donation1;
+    
+    Donation donation2;
+    donation2.id = 2;
+    donation2.donorId = 2; // John
+    donation2.type = FOOD;
+    strcpy(donation2.description, "Canned goods");
+    donation2.quantity = 20;
+    donation2.amount = 0;
+    donation2.date = current_time - 172800; // 2 days ago
+    donation2.isAvailable = 1;
+    donations[donationCount++] = donation2;
+    
+    Donation donation3;
+    donation3.id = 3;
+    donation3.donorId = 3; // Mary
+    donation3.type = MONEY;
+    strcpy(donation3.description, "Education fund");
+    donation3.quantity = 0;
+    donation3.amount = 500.00;
+    donation3.date = current_time - 259200; // 3 days ago
+    donation3.isAvailable = 1;
+    donations[donationCount++] = donation3;
+    
+    Donation donation4;
+    donation4.id = 4;
+    donation4.donorId = 3; // Mary
+    donation4.type = MEDICINE;
+    strcpy(donation4.description, "First aid supplies");
+    donation4.quantity = 5;
+    donation4.amount = 0;
+    donation4.date = current_time - 345600; // 4 days ago
+    donation4.isAvailable = 1;
+    donations[donationCount++] = donation4;
+    
+    // Add one more donation that's already been allocated
+    Donation donation5;
+    donation5.id = 5;
+    donation5.donorId = 2; // John
+    donation5.type = FOOD;
+    strcpy(donation5.description, "Rice and beans");
+    donation5.quantity = 15;
+    donation5.amount = 0;
+    donation5.date = current_time - 432000; // 5 days ago
+    donation5.isAvailable = 0; // Already allocated
+    donations[donationCount++] = donation5;
+    
+    // Add sample requests
+    Request request1;
+    request1.id = 1;
+    request1.volunteerId = 4; // Sam
+    request1.donationId = 5; // Rice and beans
+    strcpy(request1.reason, "For homeless shelter distribution");
+    request1.status = APPROVED;
+    request1.requestDate = current_time - 345600; // 4 days ago
+    requests[requestCount++] = request1;
+    
+    Request request2;
+    request2.id = 2;
+    request2.volunteerId = 4; // Sam
+    request2.donationId = 1; // Winter clothes
+    strcpy(request2.reason, "For community clothing drive");
+    request2.status = PENDING;
+    request2.requestDate = current_time - 86400; // 1 day ago
+    requests[requestCount++] = request2;
+    
+    Request request3;
+    request3.id = 3;
+    request3.volunteerId = 5; // Lisa
+    request3.donationId = 3; // Education fund
+    strcpy(request3.reason, "For after-school program");
+    request3.status = PENDING;
+    request3.requestDate = current_time - 43200; // 12 hours ago
+    requests[requestCount++] = request3;
+    
+    // Save the sample data
+    saveData();
+}
+
+// Function to save data to files
+void saveData() {
+    // Save users
+    FILE *userFile = fopen("users.dat", "wb");
+    if (userFile == NULL) {
+        printf("Error opening users file for writing.\n");
+        return;
+    }
+    fwrite(&userCount, sizeof(int), 1, userFile);
+    fwrite(users, sizeof(User), userCount, userFile);
+    fclose(userFile);
+    
+    // Save donations
+    FILE *donationFile = fopen("donations.dat", "wb");
+    if (donationFile == NULL) {
+        printf("Error opening donations file for writing.\n");
+        return;
+    }
+    fwrite(&donationCount, sizeof(int), 1, donationFile);
+    fwrite(donations, sizeof(Donation), donationCount, donationFile);
+    fclose(donationFile);
+    
+    // Save requests
+    FILE *requestFile = fopen("requests.dat", "wb");
+    if (requestFile == NULL) {
+        printf("Error opening requests file for writing.\n");
+        return;
+    }
+    fwrite(&requestCount, sizeof(int), 1, requestFile);
+    fwrite(requests, sizeof(Request), requestCount, requestFile);
+    fclose(requestFile);
+}
+
+// Function to load data from files
+void loadData() {
+    // Load users
+    FILE *userFile = fopen("users.dat", "rb");
+    if (userFile != NULL) {
+        fread(&userCount, sizeof(int), 1, userFile);
+        fread(users, sizeof(User), userCount, userFile);
+        fclose(userFile);
+    }
+    
+    // Load donations
+    FILE *donationFile = fopen("donations.dat", "rb");
+    if (donationFile != NULL) {
+        fread(&donationCount, sizeof(int), 1, donationFile);
+        fread(donations, sizeof(Donation), donationCount, donationFile);
+        fclose(donationFile);
+    }
+    
+    // Load requests
+    FILE *requestFile = fopen("requests.dat", "rb");
+    if (requestFile != NULL) {
+        fread(&requestCount, sizeof(int), 1, requestFile);
+        fread(requests, sizeof(Request), requestCount, requestFile);
+        fclose(requestFile);
+    }
+}
+
+// Function to login a user
+int loginUser(char *username, char *password) {
+    for (int i = 0; i < userCount; i++) {
+        if (strcmp(users[i].name, username) == 0 && strcmp(users[i].password, password) == 0) {
+            currentUser = users[i];
+            printf("Login successful. Welcome, %s!\n", currentUser.name);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// Function to register a new user
+void registerUser(UserType type) {
+    if (userCount >= MAX_USERS) {
+        printf("Maximum user limit reached. Cannot register new users.\n");
+        return;
+    }
+    
+    User newUser;
+    newUser.id = userCount + 1;
+    newUser.type = type;
+    
+    printf("\n===== USER REGISTRATION =====\n");
+    printf("Enter username: ");
+    fgets(newUser.name, MAX_NAME_LENGTH, stdin);
+    newUser.name[strcspn(newUser.name, "\n")] = 0; // Remove newline
+    
+    // Check if username already exists
+    for (int i = 0; i < userCount; i++) {
+        if (strcmp(users[i].name, newUser.name) == 0) {
+            printf("Username already exists. Please choose a different one.\n");
+            return;
+        }
+    }
+    
+    printf("Enter password: ");
+    fgets(newUser.password, MAX_PASSWORD_LENGTH, stdin);
+    newUser.password[strcspn(newUser.password, "\n")] = 0; // Remove newline
+    
+    printf("Enter address: ");
+    fgets(newUser.address, MAX_ADDRESS_LENGTH, stdin);
+    newUser.address[strcspn(newUser.address, "\n")] = 0; // Remove newline
+    
+    printf("Enter phone number: ");
+    fgets(newUser.phone, MAX_PHONE_LENGTH, stdin);
+    newUser.phone[strcspn(newUser.phone, "\n")] = 0; // Remove newline
+    
+    printf("Enter email: ");
+    fgets(newUser.email, MAX_EMAIL_LENGTH, stdin);
+    newUser.email[strcspn(newUser.email, "\n")] = 0; // Remove newline
+    
+    users[userCount++] = newUser;
+    printf("Registration successful. You can now login.\n");
+}
+
+// Admin menu function
+void showAdminMenu() {
+    int choice;
+    
+    printf("\n===== ADMIN MENU =====\n");
+    printf("1. View All Donations\n");
+    printf("2. Manage Donation Requests\n");
+    printf("3. View All Users\n");
+    printf("4. Save Data\n");
+    printf("5. Logout\n");
+    printf("Enter your choice: ");
+    scanf("%d", &choice);
+    getchar(); // Clear input buffer
+    
+    switch (choice) {
+        case 1:
+            viewDonations();
+            break;
+        case 2:
+            manageRequests();
+            break;
+        case 3:
+            printf("\n===== ALL USERS =====\n");
+            printf("ID\tName\t\tType\t\tEmail\t\t\tPhone\n");
+            for (int i = 0; i < userCount; i++) {
+                printf("%d\t%-15s\t%-10s\t%-20s\t%s\n", 
+                       users[i].id, 
+                       users[i].name, 
+                       users[i].type == ADMIN ? "Admin" : (users[i].type == DONOR ? "Donor" : "Volunteer"),
+                       users[i].email,
+                       users[i].phone);
+            }
+            break;
+        case 4:
+            saveData();
+            printf("Data saved successfully.\n");
+            break;
+        case 5:
+            // Logout will be handled in main function
+            break;
+        default:
+            printf("Invalid choice. Please try again.\n");
+    }
+}
+
+// Donor menu function
+void showDonorMenu() {
+    int choice;
+    
+    printf("\n===== DONOR MENU =====\n");
+    printf("1. Make a Donation\n");
+    printf("2. View Your Donation History\n");
+    printf("3. View Donation Status\n");
+    printf("4. Logout\n");
+    printf("Enter your choice: ");
+    scanf("%d", &choice);
+    getchar(); // Clear input buffer
+    
+    switch (choice) {
+        case 1:
+            addDonation();
+            break;
+        case 2:
+            viewDonationHistory();
+            break;
+        case 3:
+            printf("\n===== YOUR DONATION STATUS =====\n");
+            printf("ID\tType\t\tDescription\tAmount/Quantity\tStatus\n");
+            int found = 0;
+            for (int i = 0; i < donationCount; i++) {
+                if (donations[i].donorId == currentUser.id) {
+                    printf("%d\t%-10s\t%-15s\t%.2f\t\t%s\n", 
+                           donations[i].id,
+                           donations[i].type == CLOTHES ? "Clothes" : 
+                           (donations[i].type == FOOD ? "Food" : 
+                           (donations[i].type == MONEY ? "Money" : "Medicine")),
+                           donations[i].description,
+                           donations[i].type == MONEY ? donations[i].amount : donations[i].quantity,
+                           donations[i].isAvailable ? "Available" : "Allocated");
+                    found = 1;
+                }
+            }
+            if (!found) {
+                printf("You haven't made any donations yet.\n");
+            }
+            break;
+        case 4:
+            // Logout will be handled in main function
+            break;
+        default:
+            printf("Invalid choice. Please try again.\n");
+    }
+}
+
+// Volunteer menu function
+void showVolunteerMenu() {
+    int choice, donationId;
+    
+    printf("\n===== VOLUNTEER MENU =====\n");
+    printf("1. View Available Donations\n");
+    printf("2. Request a Donation\n");
+    printf("3. View Your Approved Requests\n");
+    printf("4. Logout\n");
+    printf("Enter your choice: ");
+    scanf("%d", &choice);
+    getchar(); // Clear input buffer
+    
+    switch (choice) {
+        case 1:
+            viewAvailableDonations();
+            break;
+        case 2:
+            viewAvailableDonations();
+            printf("\nEnter the ID of donation you want to request: ");
+            scanf("%d", &donationId);
+            getchar(); // Clear input buffer
+            requestDonation(donationId);
+            break;
+        case 3:
+            viewApprovedRequests();
+            break;
+        case 4:
+            // Logout will be handled in main function
+            break;
+        default:
+            printf("Invalid choice. Please try again.\n");
+    }
+}
+
+// Function to add a new donation
+void addDonation() {
+    if (donationCount >= MAX_DONATIONS) {
+        printf("Maximum donation limit reached. Cannot add more donations.\n");
+        return;
+    }
+    
+    Donation newDonation;
+    newDonation.id = donationCount + 1;
+    newDonation.donorId = currentUser.id;
+    newDonation.date = time(NULL);
+    newDonation.isAvailable = 1; // Available by default
+    
+    printf("\n===== MAKE A DONATION =====\n");
+    printf("Select donation type:\n");
+    printf("1. Clothes\n");
+    printf("2. Food\n");
+    printf("3. Money\n");
+    printf("4. Medicine\n");
+    printf("Enter your choice: ");
+    
+    int typeChoice;
+    scanf("%d", &typeChoice);
+    getchar(); // Clear input buffer
+    
+    switch (typeChoice) {
+        case 1:
+            newDonation.type = CLOTHES;
+            printf("Enter description (e.g., Winter clothes, Children's wear): ");
+            fgets(newDonation.description, MAX_NAME_LENGTH, stdin);
+            newDonation.description[strcspn(newDonation.description, "\n")] = 0; // Remove newline
+            
+            printf("Enter quantity (number of items): ");
+            scanf("%f", &newDonation.quantity);
+            newDonation.amount = 0; // No monetary value
+            break;
+        case 2:
+            newDonation.type = FOOD;
+            printf("Enter description (e.g., Canned goods, Rice): ");
+            fgets(newDonation.description, MAX_NAME_LENGTH, stdin);
+            newDonation.description[strcspn(newDonation.description, "\n")] = 0; // Remove newline
+            
+            printf("Enter quantity (in kg or number of packages): ");
+            scanf("%f", &newDonation.quantity);
+            newDonation.amount = 0; // No monetary value
+            break;
+        case 3:
+            newDonation.type = MONEY;
+            printf("Enter description (e.g., General fund, Education support): ");
+            fgets(newDonation.description, MAX_NAME_LENGTH, stdin);
+            newDonation.description[strcspn(newDonation.description, "\n")] = 0; // Remove newline
+            
+            printf("Enter amount: ");
+            scanf("%f", &newDonation.amount);
+            newDonation.quantity = 0; // No quantity for money
+            break;
+        case 4:
+            newDonation.type = MEDICINE;
+            printf("Enter description (e.g., Antibiotics, Painkillers): ");
+            fgets(newDonation.description, MAX_NAME_LENGTH, stdin);
+            newDonation.description[strcspn(newDonation.description, "\n")] = 0; // Remove newline
+            
+            printf("Enter quantity (number of items or packages): ");
+            scanf("%f", &newDonation.quantity);
+            newDonation.amount = 0; // No monetary value
+            break;
+        default:
+            printf("Invalid choice. Donation cancelled.\n");
+            return;
+    }
+    
+    donations[donationCount++] = newDonation;
+    printf("Donation added successfully. Thank you for your contribution!\n");
+    
+    // Save data after making a donation
+    saveData();
+}
+
+// Function to view all donations
+void viewDonations() {
+    printf("\n===== ALL DONATIONS =====\n");
+    printf("ID\tDonor\t\tType\t\tDescription\t\tAmount/Quantity\tStatus\n");
+    
+    for (int i = 0; i < donationCount; i++) {
+        // Find donor name
+        char donorName[MAX_NAME_LENGTH] = "Unknown";
+        for (int j = 0; j < userCount; j++) {
+            if (users[j].id == donations[i].donorId) {
+                strcpy(donorName, users[j].name);
+                break;
+            }
+        }
+        
+        printf("%d\t%-15s\t%-10s\t%-20s\t%.2f\t\t%s\n", 
+               donations[i].id,
+               donorName,
+               donations[i].type == CLOTHES ? "Clothes" : 
+               (donations[i].type == FOOD ? "Food" : 
+               (donations[i].type == MONEY ? "Money" : "Medicine")),
+               donations[i].description,
+               donations[i].type == MONEY ? donations[i].amount : donations[i].quantity,
+               donations[i].isAvailable ? "Available" : "Allocated");
+    }
+    
+    if (donationCount == 0) {
+        printf("No donations found in the system.\n");
+    }
+}
+
+// Function to view donation history for the current user
+void viewDonationHistory() {
+    printf("\n===== YOUR DONATION HISTORY =====\n");
+    printf("ID\tType\t\tDescription\t\tAmount/Quantity\tDate\t\t\tStatus\n");
+    
+    int found = 0;
+    for (int i = 0; i < donationCount; i++) {
+        if (donations[i].donorId == currentUser.id) {
+            char dateStr[26];
+            ctime_r(&donations[i].date, dateStr);
+            dateStr[24] = '\0'; // Remove newline
+            
+            printf("%d\t%-10s\t%-20s\t%.2f\t\t%s\t%s\n", 
+                   donations[i].id,
+                   donations[i].type == CLOTHES ? "Clothes" : 
+                   (donations[i].type == FOOD ? "Food" : 
+                   (donations[i].type == MONEY ? "Money" : "Medicine")),
+                   donations[i].description,
+                   donations[i].type == MONEY ? donations[i].amount : donations[i].quantity,
+                   dateStr,
+                   donations[i].isAvailable ? "Available" : "Allocated");
+            found = 1;
+        }
+    }
+    
+    if (!found) {
+        printf("You haven't made any donations yet.\n");
+    }
+}
+
+// Function to view available donations
+void viewAvailableDonations() {
+    printf("\n===== AVAILABLE DONATIONS =====\n");
+    printf("ID\tType\t\tDescription\t\tAmount/Quantity\n");
+    
+    int found = 0;
+    for (int i = 0; i < donationCount; i++) {
+        if (donations[i].isAvailable) {
+            printf("%d\t%-10s\t%-20s\t%.2f\n", 
+                   donations[i].id,
+                   donations[i].type == CLOTHES ? "Clothes" : 
+                   (donations[i].type == FOOD ? "Food" : 
+                   (donations[i].type == MONEY ? "Money" : "Medicine")),
+                   donations[i].description,
+                   donations[i].type == MONEY ? donations[i].amount : donations[i].quantity);
+            found = 1;
+        }
+    }
+    
+    if (!found) {
+        printf("No donations are currently available.\n");
+    }
+}
+
+// Function to request a donation
+void requestDonation(int donationId) {
+    if (requestCount >= MAX_DONATIONS) {
+        printf("Maximum request limit reached. Cannot add more requests.\n");
+        return;
+    }
+    
+    // Check if donation exists and is available
+    int donationFound = 0;
+    for (int i = 0; i < donationCount; i++) {
+        if (donations[i].id == donationId && donations[i].isAvailable) {
+            donationFound = 1;
+            break;
+        }
+    }
+    
+    if (!donationFound) {
+        printf("Invalid donation ID or the donation is no longer available.\n");
+        return;
+    }
+    
+    Request newRequest;
+    newRequest.id = requestCount + 1;
+    newRequest.volunteerId = currentUser.id;
+    newRequest.donationId = donationId;
+    newRequest.status = PENDING;
+    newRequest.requestDate = time(NULL);
+    
+    printf("Enter reason for requesting this donation: ");
+    fgets(newRequest.reason, MAX_REASON_LENGTH, stdin);
+    newRequest.reason[strcspn(newRequest.reason, "\n")] = 0; // Remove newline
+    
+    requests[requestCount++] = newRequest;
+    printf("Request submitted successfully. Waiting for admin approval.\n");
+    
+    // Save data after submitting a request
+    saveData();
+}
+
+// Function to manage donation requests
+void manageRequests() {
+    printf("\n===== PENDING DONATION REQUESTS =====\n");
+    printf("ID\tVolunteer\tDonation\t\tReason\t\t\tRequest Date\n");
+    
+    int found = 0;
+    for (int i = 0; i < requestCount; i++) {
+        if (requests[i].status == PENDING) {
+            // Find volunteer name
+            char volunteerName[MAX_NAME_LENGTH] = "Unknown";
+            for (int j = 0; j < userCount; j++) {
+                if (users[j].id == requests[i].volunteerId) {
+                    strcpy(volunteerName, users[j].name);
+                    break;
+                }
+            }
+            
+            // Find donation description
+            char donationDesc[MAX_NAME_LENGTH] = "Unknown";
+            for (int j = 0; j < donationCount; j++) {
+                if (donations[j].id == requests[i].donationId) {
+                    strcpy(donationDesc, donations[j].description);
+                    break;
+                }
+            }
+            
+            char dateStr[26];
+            ctime_r(&requests[i].requestDate, dateStr);
+            dateStr[24] = '\0'; // Remove newline
+            
+            printf("%d\t%-15s\t%-20s\t%-20s\t%s\n", 
+                   requests[i].id,
+                   volunteerName,
+                   donationDesc,
+                   requests[i].reason,
+                   dateStr);
+            found = 1;
+        }
+    }
+    
+    if (!found) {
+        printf("No pending requests.\n");
+        return;
+    }
+    
+    int requestId, action;
+    printf("\nEnter request ID to manage (0 to cancel): ");
+    scanf("%d", &requestId);
+    getchar(); // Clear input buffer
+    
+    if (requestId == 0) {
+        return;
+    }
+    
+    // Find request
+    int requestIndex = -1;
+    for (int i = 0; i < requestCount; i++) {
+        if (requests[i].id == requestId && requests[i].status == PENDING) {
+            requestIndex = i;
+            break;
+        }
+    }
+    
+    if (requestIndex == -1) {
+        printf("Invalid request ID or request is not pending.\n");
+        return;
+    }
+    
+    printf("1. Approve\n");
+    printf("2. Reject\n");
+    printf("Enter your choice: ");
+    scanf("%d", &action);
+    getchar(); // Clear input buffer
+    
+    switch (action) {
+        case 1:
+            approveRequest(requestId);
+            break;
+        case 2:
+            rejectRequest(requestId);
+            break;
+        default:
+            printf("Invalid choice.\n");
+    }
+    
+    // Save data after managing a request
+    saveData();
+}
+
+// Function to approve a request
+void approveRequest(int requestId) {
+    // Find request
+    int requestIndex = -1;
+    for (int i = 0; i < requestCount; i++) {
+        if (requests[i].id == requestId) {
+            requestIndex = i;
+            break;
+        }
+    }
+    
+    if (requestIndex == -1) {
+        printf("Invalid request ID.\n");
+        return;
+    }
+    
+    // Find donation
+    int donationIndex = -1;
+    for (int i = 0; i < donationCount; i++) {
+        if (donations[i].id == requests[requestIndex].donationId) {
+            donationIndex = i;
+            break;
+        }
+    }
+    
+    if (donationIndex == -1) {
+        printf("Donation not found.\n");
+        return;
+    }
+    
+    // Mark donation as allocated
+    donations[donationIndex].isAvailable = 0;
+    
+    // Update request status
+    requests[requestIndex].status = APPROVED;
+    
+    printf("Request approved successfully. The donation has been allocated to the volunteer.\n");
+}
+
+// Function to reject a request
+void rejectRequest(int requestId) {
+    // Find request
+    int requestIndex = -1;
+    for (int i = 0; i < requestCount; i++) {
+        if (requests[i].id == requestId) {
+            requestIndex = i;
+            break;
+        }
+    }
+    
+    if (requestIndex == -1) {
+        printf("Invalid request ID.\n");
+        return;
+    }
+    
+    // Update request status
+    requests[requestIndex].status = REJECTED;
+    
+    printf("Request rejected successfully.\n");
+}
+
+// Function to view approved requests for the current volunteer
+void viewApprovedRequests() {
+    printf("\n===== YOUR APPROVED REQUESTS =====\n");
+    printf("ID\tDonation Type\tDescription\tAmount/Quantity\tApproval Date\n");
+    
+    int found = 0;
+    for (int i = 0; i < requestCount; i++) {
+        if (requests[i].volunteerId == currentUser.id && requests[i].status == APPROVED) {
+            // Find donation details
+            for (int j = 0; j < donationCount; j++) {
+                if (donations[j].id == requests[i].donationId) {
+                    char dateStr[26];
+                    ctime_r(&requests[i].requestDate, dateStr);
+                    dateStr[24] = '\0'; // Remove newline
+                    
+                    printf("%d\t%s\t%s\t%.2f\t\t%s\n", 
+                           requests[i].id,
+                           donations[j].type == CLOTHES ? "Clothes" : 
+                           (donations[j].type == FOOD ? "Food" : 
+                           (donations[j].type == MONEY ? "Money" : "Medicine")),
+                           donations[j].description,
+                           donations[j].type == MONEY ? donations[j].amount : donations[j].quantity,
+                           dateStr);
+                    found = 1;
+                    break;
+                }
+            }
+        }
+    }
+    
+    if (!found) {
+        printf("You don't have any approved requests.\n");
+    }
+}
+
+// Main function
+int main() {
+    // Initialize system
+    initializeSystem();
+    
+    int choice;
+    int loggedIn = 0;
+    
+    while (1) {
+        if (!loggedIn) {
+            printf("\n===== CHARITY MANAGEMENT SYSTEM =====\n");
+            printf("1. Login\n");
+            printf("2. Register as Donor\n");
+            printf("3. Register as Volunteer\n");
+            printf("0. Exit\n");
+            printf("Enter your choice: ");
+            scanf("%d", &choice);
+            getchar(); // Clear input buffer
+            
+            char username[MAX_NAME_LENGTH];
+            char password[MAX_PASSWORD_LENGTH];
+            
+            switch (choice) {
+                case 1:
+                    printf("Enter username: ");
+                    fgets(username, MAX_NAME_LENGTH, stdin);
+                    username[strcspn(username, "\n")] = 0; // Remove newline
+                    
+                    printf("Enter password: ");
+                    fgets(password, MAX_PASSWORD_LENGTH, stdin);
+                    password[strcspn(password, "\n")] = 0; // Remove newline
+                    
+                    loggedIn = loginUser(username, password);
+                    if (!loggedIn) {
+                        printf("Invalid username or password. Please try again.\n");
+                    }
+                    break;
+                case 2:
+                    registerUser(DONOR);
+                    break;
+                case 3:
+                    registerUser(VOLUNTEER);
+                    break;
+                case 0:
+                    saveData(); // Save data before exiting
+                    printf("Thank you for using Charity Management System. Goodbye!\n");
+                    return 0;
+                default:
+                    printf("Invalid choice. Please try again.\n");
+            }
+        } else {
+            // Show appropriate menu based on user type
+            switch (currentUser.type) {
+                case ADMIN:
+                    showAdminMenu();
+                    break;
+                case DONOR:
+                    showDonorMenu();
+                    break;
+                case VOLUNTEER:
+                    showVolunteerMenu();
+                    break;
+            }
+            
+            // Check if user wants to logout
+            printf("\nDo you want to logout? (1 for Yes, 0 for No): ");
+            scanf("%d", &choice);
+            if (choice == 1) {
+                loggedIn = 0;
+                printf("Logged out successfully.\n");
+            }
+        }
+    }
+    
+    return 0;
+}
